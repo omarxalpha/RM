@@ -1,0 +1,113 @@
+---
+title: "Automatic or manual transmission? A statistical approach"
+author: "Omar Alfaro-Rivera"
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+    number_sections: TRUE 
+---
+
+# Executive Summary
+
+The following analysis emphasizes the relationship between automobile performance (measured in Miles Per Gallon) and the type of transmission (automatic or manual). Research shows that __performance is favored by manual transmission__, a relationship that is maintained by including other variables to the model, such as _Gross horsepower_ and _Number of cylinders_. It should be noted that the conclusions drawn here are completely partial, since the large number of variables that can be decisive in the performance of variables. In the next issue of the magazine this topic is completed by conducting a Principal Component Analysis.
+
+# Introduction
+
+Based on the data obtained in the [Motor Trend Car Road Tests](https://figshare.com/articles/Motor_Trend_Car_Road_Tests/3122005) (the following table shows the structure of the data), it is proposed to use regression models to check the impact of the type of transmission on the performance of automobiles (measured in Miles Per Gallon).
+
+```{r, message=FALSE, echo=FALSE}
+library(ggplot2)
+library(stargazer)
+
+data(mtcars)
+knitr::kable(head(mtcars))
+mtcars$trans[mtcars$am == 0] = "Automatic"
+mtcars$trans[mtcars$am == 1] = "Manual"
+```
+
+The following variables will be used for this analysis:
+
+* mpg	Miles/(US) gallon
+* hp	Gross horsepower
+* cyl	Number of cylinders
+
+For readers looking to reproduce this analysis, visit the following site:
+
+# Exploratory Analysis
+
+In this section we will review two graphs that shed light on the best way to estimate the model to measure the relationship between the type of transmission and the fuel efficiency of automobiles. First off, the box diagrams below show that, on average, cars with a manual transmission perform better and the maximum values are also favorable for this transmission.The magnitude of this difference and its statistical significance will be reviewed in the next section.
+
+```{r, fig.height=3.1, echo = FALSE}
+ggplot(mtcars,aes(y = mpg, x = trans, col = trans))+
+  geom_boxplot()+
+  geom_point(alpha=0.25)+labs (title = "Box plot by transmission type", y='Miles /(US) gallon',
+                               x='')+
+  theme(legend.title = element_blank(), plot.title = element_text(size=10),
+        text = element_text(size = 8))
+
+```
+
+One of the variables that is given great importance in this analysis is the horsepower of each car. This variable is assumed to be beneficial in modeling the desired relationship by adding more variables and keeping the principle of parsimony, since this variable is a good proxy for many other variables, we delve further into this in the next section. For now, the negative relationship between this variable and performance is clear, while the type of transmission also shows a difference in the ordinate to the origin.
+
+```{r, fig.height=3.25, echo = FALSE}
+ggplot(mtcars, aes(hp, mpg, col = trans))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = 'Transmission Type impact on the correlation between Performance (MPG) 
+       and Horsepower', y='Miles /(US) gallon',x='Gross horsepower')+
+  theme(legend.title = element_blank(), plot.title = element_text(size=10),
+          text = element_text(size = 8))
+```
+
+# Estimated models 
+
+The following regression models are proposed to capture the desired relationship, as can be seen from the simpler relationship, and more variables are gradually added to the model.
+$$MPG = \beta_0 + \beta_1Transmission+\epsilon $$
+$$MPG = \beta_0 + \beta_1Transmission+\beta_2horsepower\epsilon$$
+$$MPG = \beta_0 + \beta_1Transmission+\beta_2horsepower+\beta_3Cylinders+\epsilon $$
+The estimates shown below show the p value associated with the null hypothesis that the estimator is equal to zero, that is, that said variable has no effect on the dependent variable, in other words:
+
+$$H_0: \beta_i = 0$$
+$$H_a: \beta_i \neq 0$$
+
+Thus, being a two-tailed test, the p value should be less than 0.025 to fail to reject the null hypothesis. In this order of ideas, the following table shows the model made in the columns, and the independent variables and the statistics associated with that model in the rows. Los espacios en blanco quieren decir que para esa estimación no se utilizo la variable en cuestión, a la vez que estaríamos buscando tres asteriscos en nuestros regresores (significancia al 95%).
+
+```{r, results='asis', message=FALSE, warning=FALSE, echo = FALSE}
+lm0 <- lm(mpg~am, mtcars)
+lm1 <- lm(mpg~am+hp, mtcars)
+lm2 <- lm(mpg~am+hp+disp, mtcars)
+stargazer(lm0,lm1,lm2, type = 'latex', single.row = FALSE, title = "Regression results", 
+          style ="aer",dep.var.labels = "Miles /(US) gallon (MPG)",
+          covariate.labels = c('Transmission', 'Gross horsepower', "Number of cylinders"), 
+          header = FALSE)
+```
+
+As the table allows observing, making value analyzes of the value associated with each estimator, it can be seen that the first models are specific in all their parameters. On the other hand, a weight of which the Number of Cylinders is not significant, this specification contains the highest correlation. By using the Analysis of Variances, you can tell that there is a better way to choose the best specification for the model.
+
+Incidentally, the selection of the variable 'Horse grosspower' was strategically chosen since it retains a high correlation with other variables. Cars with more horsepower are generally associated with cars with higher cylinder numbers, and these in turn are heavier cars. In addition to the fact that the chosen variable, unlike others, does not maintain correlation with the type of transmission and this rules out a multicollinearity problem from the model.
+
+# ANOVA analysis of the models
+
+In the Analysis of Variances (ANOVA) an F test is performed, which is one-tailed. This means that to obtain statistical significance at 95%, it is necessary to obtain a p-value less than or equal to 0.05. If so, it is concluded that adding an extra variable to the model and inflating the variances of the regressors is justifiable.
+
+The following table shows that of the elected models, the second is the one that best keeps the principle of parsimony. Since it does not really make it necessary to add more variables to the model and with only two variables we have an autocorrelation coefficient drawn.
+
+```{r, results='asis', message=FALSE, echo = FALSE}
+options(knitr.kable.NA = '')
+knitr::kable(round(anova(lm0,lm1,lm2),2), type="latex", )
+```
+
+# Analysis of errors
+
+The analysis of the errors shows that the errors in our electro model are randomly distributed and do not follow any pattern. The QQ plot shows the good fit that the model achieves. In addition to that the coefficient of Leverage does not show values that generate great concern, that is, there are no outliers that concentrate a great weight in the form of our regression.
+
+```{r, echo=FALSE}
+par(mfrow = c(2,2), mar = c(2,3.5,1,0.75))
+plot(lm1, cex.main=.25, cex.lab=0.5, cex.axis=0.5, cex.lab=0.5, cex.id = 0.5, cex.caption = 0.65)
+```
+
+# Conclusions
+
+It is possible to assume that the type of transmission has an impact on the fuel efficiency of a vehicle. This analysis generates a model with a really high level of fit and keeping the principle of parsimony in mind. Other models, taking into account other independent variables, may show a different effect from the type of transmission, but in all likelihood they will converge in that you opt for a manual car, allowing an improvement in the sense of efficiency.
